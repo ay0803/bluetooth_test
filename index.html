@@ -2,18 +2,87 @@
 <html>
 <head>
   <title>ESP32 LED Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      font-size: 24px;
+      color: #333;
+    }
+    .status-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: #ccc;
+      display: inline-block;
+      margin-right: 10px;
+      transition: background-color 0.3s;
+    }
+    .status-indicator.connected {
+      background-color: #28a745;
+    }
+    button {
+      font-size: 18px;
+      padding: 12px 24px;
+      margin: 10px;
+      border-radius: 8px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .control-button {
+      width: 120px;
+    }
+    .control-button.active {
+      background-color: #28a745;
+    }
+    .connection-status {
+      margin: 20px 0;
+      font-size: 16px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
   <h1>ESP32 LED Control (BLE)</h1>
-  <button onclick="connectBluetooth()">Connect</button>
-  <button onclick="sendData('ON')">ON</button>
-  <button onclick="sendData('OFF')">OFF</button>
+  <div class="connection-status">
+    <span class="status-indicator" id="connectionIndicator"></span>
+    <span id="statusText">未接続</span>
+  </div>
+  <button onclick="connectBluetooth()" id="connectButton">接続</button>
+  <br>
+  <button class="control-button" onclick="sendData('ON')" id="onButton" disabled>オン</button>
+  <button class="control-button" onclick="sendData('OFF')" id="offButton" disabled>オフ</button>
 
   <script>
     let bleDevice;
     let bleCharacteristic;
+    let currentState = 'OFF';
 
     async function connectBluetooth() {
+      const connectButton = document.getElementById('connectButton');
+      const statusIndicator = document.getElementById('connectionIndicator');
+      const statusText = document.getElementById('statusText');
+      const onButton = document.getElementById('onButton');
+      const offButton = document.getElementById('offButton');
+
+      connectButton.disabled = true;
+      connectButton.textContent = '接続中...';
+
       try {
         bleDevice = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
@@ -24,19 +93,46 @@
         const service = await server.getPrimaryService('12345678-1234-5678-1234-56789abcdef0');
         bleCharacteristic = await service.getCharacteristic('abcdef12-3456-7890-abcd-ef1234567890');
 
-        alert("Bluetooth connected!");
+        statusIndicator.classList.add('connected');
+        statusText.textContent = '接続済み';
+        connectButton.textContent = '接続済み';
+        onButton.disabled = false;
+        offButton.disabled = false;
       } catch (error) {
         console.error(error);
+        alert("接続に失敗しました。もう一度お試しください。");
+        connectButton.disabled = false;
+        connectButton.textContent = '接続';
       }
     }
 
     async function sendData(value) {
       if (!bleCharacteristic) {
-        alert("Bluetooth not connected!");
+        alert("Bluetoothが接続されていません!");
         return;
       }
-      let encoder = new TextEncoder();
-      await bleCharacteristic.writeValue(encoder.encode(value));
+
+      const onButton = document.getElementById('onButton');
+      const offButton = document.getElementById('offButton');
+
+      try {
+        let encoder = new TextEncoder();
+        await bleCharacteristic.writeValue(encoder.encode(value));
+        
+        // Update button states
+        if (value === 'ON') {
+          onButton.classList.add('active');
+          offButton.classList.remove('active');
+          currentState = 'ON';
+        } else {
+          offButton.classList.add('active');
+          onButton.classList.remove('active');
+          currentState = 'OFF';
+        }
+      } catch (error) {
+        console.error(error);
+        alert("コマンドの送信に失敗しました。");
+      }
     }
   </script>
 </body>
