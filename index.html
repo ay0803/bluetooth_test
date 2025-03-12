@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 LED Control</title>
+</head>
+<body>
+  <h1>ESP32 LED Control (BLE)</h1>
+  <button onclick="connectBluetooth()">Connect</button>
+  <button onclick="sendData('ON')">ON</button>
+  <button onclick="sendData('OFF')">OFF</button>
+
+  <script>
+    let bleDevice;
+    let bleCharacteristic;
+
+    async function connectBluetooth() {
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['12345678-1234-5678-1234-56789abcdef0']
+        });
+
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService('12345678-1234-5678-1234-56789abcdef0');
+        bleCharacteristic = await service.getCharacteristic('abcdef12-3456-7890-abcd-ef1234567890');
+
+        alert("Bluetooth connected!");
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function sendData(value) {
+      if (!bleCharacteristic) {
+        alert("Bluetooth not connected!");
+        return;
+      }
+      let encoder = new TextEncoder();
+      await bleCharacteristic.writeValue(encoder.encode(value));
+    }
+  </script>
+</body>
+</html>
