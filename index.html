@@ -55,6 +55,20 @@
       font-size: 16px;
       color: #666;
     }
+    .blink-control {
+      margin: 20px auto;
+      width: 80%;
+      max-width: 300px;
+    }
+    .slider-container {
+      margin: 20px auto;
+      width: 80%;
+      max-width: 300px;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
@@ -67,42 +81,45 @@
   <br>
   <button class="control-button" onclick="sendData('ON')" id="onButton" disabled>オン</button>
   <button class="control-button" onclick="sendData('OFF')" id="offButton" disabled>オフ</button>
-
+  <div class="blink-control">
+    <label for="blinkCount">点滅回数:</label>
+    <select id="blinkCount">
+      <option value="1">1</option>
+      <option value="5">5</option>
+      <option value="10">10</option>
+      <option value="20">20</option>
+      <option value="30">30</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select>
+    <button class="control-button" onclick="sendBlink()" id="blinkButton" disabled>点滅開始</button>
+  </div>
+  <div class="slider-container">
+    <label for="blinkSpeed">点滅速度: <span id="speedValue">500</span>ms</label>
+    <input type="range" id="blinkSpeed" min="100" max="2000" value="500" step="100">
+  </div>
   <script>
     let bleDevice;
     let bleCharacteristic;
-    let currentState = 'OFF';
 
     async function connectBluetooth() {
-      const connectButton = document.getElementById('connectButton');
-      const statusIndicator = document.getElementById('connectionIndicator');
-      const statusText = document.getElementById('statusText');
-      const onButton = document.getElementById('onButton');
-      const offButton = document.getElementById('offButton');
-
-      connectButton.disabled = true;
-      connectButton.textContent = '接続中...';
-
       try {
         bleDevice = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
           optionalServices: ['12345678-1234-5678-1234-56789abcdef0']
         });
-
         const server = await bleDevice.gatt.connect();
         const service = await server.getPrimaryService('12345678-1234-5678-1234-56789abcdef0');
         bleCharacteristic = await service.getCharacteristic('abcdef12-3456-7890-abcd-ef1234567890');
-
-        statusIndicator.classList.add('connected');
-        statusText.textContent = '接続済み';
-        connectButton.textContent = '接続済み';
-        onButton.disabled = false;
-        offButton.disabled = false;
+        document.getElementById('connectionIndicator').classList.add('connected');
+        document.getElementById('statusText').textContent = '接続済み';
+        document.getElementById('connectButton').textContent = '接続済み';
+        document.getElementById('onButton').disabled = false;
+        document.getElementById('offButton').disabled = false;
+        document.getElementById('blinkButton').disabled = false;
       } catch (error) {
         console.error(error);
         alert("接続に失敗しました。もう一度お試しください。");
-        connectButton.disabled = false;
-        connectButton.textContent = '接続';
       }
     }
 
@@ -111,29 +128,25 @@
         alert("Bluetoothが接続されていません!");
         return;
       }
-
-      const onButton = document.getElementById('onButton');
-      const offButton = document.getElementById('offButton');
-
-      try {
-        let encoder = new TextEncoder();
-        await bleCharacteristic.writeValue(encoder.encode(value));
-        
-        // Update button states
-        if (value === 'ON') {
-          onButton.classList.add('active');
-          offButton.classList.remove('active');
-          currentState = 'ON';
-        } else {
-          offButton.classList.add('active');
-          onButton.classList.remove('active');
-          currentState = 'OFF';
-        }
-      } catch (error) {
-        console.error(error);
-        alert("コマンドの送信に失敗しました。");
-      }
+      let encoder = new TextEncoder();
+      await bleCharacteristic.writeValue(encoder.encode(value));
     }
+
+    async function sendBlink() {
+      if (!bleCharacteristic) {
+        alert("Bluetoothが接続されていません!");
+        return;
+      }
+      let count = document.getElementById("blinkCount").value;
+      let speed = document.getElementById("blinkSpeed").value;
+      let encoder = new TextEncoder();
+      await bleCharacteristic.writeValue(encoder.encode("BLINK:" + count + ":" + speed));
+    }
+
+    // 速度スライダーの値を表示する
+    document.getElementById("blinkSpeed").addEventListener("input", function() {
+      document.getElementById("speedValue").textContent = this.value;
+    });
   </script>
 </body>
 </html>
